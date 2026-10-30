@@ -78,6 +78,14 @@
     .button-primary { background: var(--accent); color: var(--ink); }
     .button-secondary { color: var(--text); border-color: var(--line); }
     .button-secondary:hover { background: var(--card); }
+    .floating-contact {
+      position: fixed; z-index: 9; right: calc(24px + env(safe-area-inset-right));
+      bottom: calc(24px + env(safe-area-inset-bottom)); display: inline-flex; align-items: center;
+      gap: 10px; min-height: 52px; padding: 0 20px; border-radius: 999px;
+      background: var(--accent); color: var(--ink); font-size: 14px; font-weight: 700;
+      box-shadow: 0 8px 24px rgba(17, 35, 41, .2); transition: transform .2s, background .2s;
+    }
+    .floating-contact:hover { transform: translateY(-3px); background: var(--accent-strong); }
     .profile-panel { position: relative; border-top: 1px solid var(--line); padding-top: 345px; }
     .profile-top { display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; }
     .avatar { position: absolute; top: 48px; right: auto; left: 50%; width: 240px; height: 240px; display: block; object-fit: cover; transform: translateX(-50%); border-radius: 50%; background: var(--accent); color: var(--ink); font-size: 34px; font-weight: 700; box-shadow: 14px 14px 0 var(--warm); }
@@ -204,6 +212,10 @@
     </div>
   </header>
 
+  <a class="floating-contact" href="contact.html" aria-label="前往聯絡頁面">
+    <i class="fa-solid fa-envelope" aria-hidden="true"></i><span>聯絡我</span>
+  </a>
+
   <main>
     <section class="hero" id="profile">
       <div class="shell hero-grid">
@@ -264,59 +276,62 @@
     const observer = new IntersectionObserver((entries) => { entries.forEach((entry) => { if (entry.isIntersecting) { links.forEach((link) => link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id)); } }); }, { rootMargin: '-35% 0px -55% 0px' });
     sections.forEach((section) => observer.observe(section));
 
-    const visitorToday = document.getElementById('visitorToday');
-    const visitorTotal = document.getElementById('visitorTotal');
-    const visitorCounterUrl = 'https://script.google.com/macros/s/AKfycbwZ6ralOPdCPcUDXS7SEgzdXpQch8Vv-8vvOOtZTj6BHMGdH5N9zUgfVJLSu3a_hSbYAA/exec';
-    if (visitorCounterUrl !== 'YOUR_GAS_WEB_APP_URL') {
-      visitorToday.textContent = '載入中…';
-      visitorTotal.textContent = '載入中…';
-      const callbackName = `visitorCounterCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const script = document.createElement('script');
-      const clearRequest = () => {
-        window.clearTimeout(timeout);
-        script.remove();
-        delete window[callbackName];
-      };
-      const timeout = window.setTimeout(() => {
-        clearRequest();
-        visitorToday.textContent = '讀取逾時';
-        visitorTotal.textContent = '讀取逾時';
-      }, 10000);
-      window[callbackName] = (result) => {
-        clearRequest();
-        if (!result || !result.ok || !Number.isFinite(Number(result.today)) || !Number.isFinite(Number(result.total))) {
+    function initializeVisitorCounter() {
+      const visitorToday = document.getElementById('visitorToday');
+      const visitorTotal = document.getElementById('visitorTotal');
+      const visitorCounterUrl = 'https://script.google.com/macros/s/AKfycbwZ6ralOPdCPcUDXS7SEgzdXpQch8Vv-8vvOOtZTj6BHMGdH5N9zUgfVJLSu3a_hSbYAA/exec';
+      if (visitorCounterUrl !== 'YOUR_GAS_WEB_APP_URL') {
+        visitorToday.textContent = '載入中…';
+        visitorTotal.textContent = '載入中…';
+        const callbackName = `visitorCounterCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const script = document.createElement('script');
+        const clearRequest = () => {
+          window.clearTimeout(timeout);
+          script.remove();
+          delete window[callbackName];
+        };
+        const timeout = window.setTimeout(() => {
+          clearRequest();
+          visitorToday.textContent = '讀取逾時';
+          visitorTotal.textContent = '讀取逾時';
+        }, 10000);
+        window[callbackName] = (result) => {
+          clearRequest();
+          if (!result || !result.ok || !Number.isFinite(Number(result.today)) || !Number.isFinite(Number(result.total))) {
+            visitorToday.textContent = '讀取失敗';
+            visitorTotal.textContent = '讀取失敗';
+            return;
+          }
+          visitorToday.textContent = Number(result.today).toLocaleString('zh-TW');
+          visitorTotal.textContent = Number(result.total).toLocaleString('zh-TW');
+        };
+        script.onerror = () => {
+          clearRequest();
           visitorToday.textContent = '讀取失敗';
           visitorTotal.textContent = '讀取失敗';
+        };
+        const endpoint = new URL(visitorCounterUrl);
+        endpoint.searchParams.set('callback', callbackName);
+        endpoint.searchParams.set('page', window.location.hostname + window.location.pathname);
+        try {
+          const uidStorageKey = 'josh-visitor-id';
+          let uid = localStorage.getItem(uidStorageKey);
+          if (!uid || !/^[A-Za-z0-9_-]{16,64}$/.test(uid)) {
+            uid = Array.from(crypto.getRandomValues(new Uint8Array(16)), (value) => value.toString(16).padStart(2, '0')).join('');
+            localStorage.setItem(uidStorageKey, uid);
+          }
+          endpoint.searchParams.set('uid', uid);
+        } catch (error) {
+          clearRequest();
+          visitorToday.textContent = '瀏覽器儲存不可用';
+          visitorTotal.textContent = '瀏覽器儲存不可用';
           return;
         }
-        visitorToday.textContent = Number(result.today).toLocaleString('zh-TW');
-        visitorTotal.textContent = Number(result.total).toLocaleString('zh-TW');
-      };
-      script.onerror = () => {
-        clearRequest();
-        visitorToday.textContent = '讀取失敗';
-        visitorTotal.textContent = '讀取失敗';
-      };
-      const endpoint = new URL(visitorCounterUrl);
-      endpoint.searchParams.set('callback', callbackName);
-      endpoint.searchParams.set('page', window.location.hostname + window.location.pathname);
-      try {
-        const uidStorageKey = 'josh-visitor-id';
-        let uid = localStorage.getItem(uidStorageKey);
-        if (!uid || !/^[A-Za-z0-9_-]{16,64}$/.test(uid)) {
-          uid = Array.from(crypto.getRandomValues(new Uint8Array(16)), (value) => value.toString(16).padStart(2, '0')).join('');
-          localStorage.setItem(uidStorageKey, uid);
-        }
-        endpoint.searchParams.set('uid', uid);
-      } catch (error) {
-        clearRequest();
-        visitorToday.textContent = '瀏覽器儲存不可用';
-        visitorTotal.textContent = '瀏覽器儲存不可用';
-        return;
+        script.src = endpoint.toString();
+        document.head.appendChild(script);
       }
-      script.src = endpoint.toString();
-      document.head.appendChild(script);
     }
+    initializeVisitorCounter();
   </script>
 </body>
 </html>
